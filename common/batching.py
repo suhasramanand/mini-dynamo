@@ -8,7 +8,7 @@ ones that have finished. New requests therefore join the running batch on the
 very next step instead of blocking behind the current one.
 
 Because one step advances every sequence together, aggregate throughput scales
-with the batch size while per-token latency stays flat — exactly the property
+with the batch size while per-token latency stays flat - exactly the property
 continuous batching buys you on a real accelerator.
 """
 

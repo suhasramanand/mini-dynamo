@@ -2,7 +2,7 @@
 
 The router keeps conversations *sticky*: the first turn of a session picks a
 decode backend and records it in Redis; later turns of the same session are
-sent back to that same backend because it (may) still hold the KV cache — a
+sent back to that same backend because it (may) still hold the KV cache - a
 cache hit avoids re-prefill and re-transfer. If the sticky backend has
 disappeared from the registry (crashed / heartbeat expired) the router falls
 back to the least-loaded live backend and re-pins the session.

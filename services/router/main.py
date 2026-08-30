@@ -1,4 +1,4 @@
-"""Router service — the client entry point.
+"""Router service - the client entry point.
 
 Orchestrates a generation request across the disaggregated pipeline:
 

@@ -147,7 +147,7 @@ class MemorySimulator:
         if self.eviction_policy == "fifo":
             # Oldest created wins.
             return min(self._blocks.items(), key=lambda kv: kv[1].created_at)[0]
-        # Default: LRU — least recently accessed.
+        # Default: LRU - least recently accessed.
         return min(self._blocks.items(), key=lambda kv: kv[1].last_access)[0]
 
     def stats(self) -> dict:

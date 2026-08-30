@@ -2,9 +2,9 @@
 
 Drives the same workload against two endpoints:
 
-* disaggregated  — the router in disaggregated mode (prefill and decode are
+* disaggregated  - the router in disaggregated mode (prefill and decode are
   separate services; the KV cache is transferred between them),
-* colocated      — the router in colocated mode (a single worker runs prefill
+* colocated      - the router in colocated mode (a single worker runs prefill
   and decode in-process; no KV transfer).
 
 It also measures the KV-transfer overhead directly by sampling the decode

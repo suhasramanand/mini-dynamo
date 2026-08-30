@@ -1,8 +1,8 @@
 """Decode service.
 
 Owns the decode stage. Given a KV cache produced by a prefill node it first
-"transfers" that cache into local (simulated) GPU memory — paying the transfer
-overhead a colocated deployment avoids — then streams generated tokens using
+"transfers" that cache into local (simulated) GPU memory - paying the transfer
+overhead a colocated deployment avoids - then streams generated tokens using
 the continuous-batching scheduler.
 """
 

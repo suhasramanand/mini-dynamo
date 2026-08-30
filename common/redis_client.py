@@ -2,11 +2,11 @@
 
 Three responsibilities:
 
-1. **Service registry** — prefill/decode nodes self-register with a TTL
+1. **Service registry** - prefill/decode nodes self-register with a TTL
    heartbeat so the router can discover them dynamically and detect failures.
-2. **Sticky session map** — ``session_id -> decode backend`` so follow-up turns
+2. **Sticky session map** - ``session_id -> decode backend`` so follow-up turns
    in a conversation land on the worker that already holds the KV cache.
-3. **KV metadata registry** — ``kv_cache_id -> {size, tokens, backend}`` so the
+3. **KV metadata registry** - ``kv_cache_id -> {size, tokens, backend}`` so the
    decode stage knows how much to "transfer" and where the cache lives.
 
 All access is async (``redis.asyncio``). Every method degrades gracefully if

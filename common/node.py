@@ -2,7 +2,7 @@
 
 Each worker advertises itself in the Redis registry on a fixed interval with a
 TTL slightly longer than the interval. If a worker dies, its entry expires and
-the router stops routing to it — this is the failure detection that the router's
+the router stops routing to it - this is the failure detection that the router's
 fallback path relies on.
 """
 

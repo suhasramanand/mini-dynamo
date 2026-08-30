@@ -1,4 +1,4 @@
-# Mini-Dynamo — local stack.
+# Mini-Dynamo - local stack.
 #
 # Topology: 1 router, 1 prefill node, 2 decode nodes, Redis for shared state.
 # Two decode nodes exist to demonstrate KV-aware sticky routing and fallback.

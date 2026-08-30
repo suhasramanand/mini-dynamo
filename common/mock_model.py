@@ -3,8 +3,8 @@
 Fakes tokenization and token generation with realistic-looking latency so the
 platform can be exercised end-to-end on a laptop with no GPU. Two operations:
 
-* ``prefill`` — turn a prompt into a KV cache (latency grows with prompt len).
-* ``decode_step`` — emit one token (fixed per-token latency + jitter).
+* ``prefill`` - turn a prompt into a KV cache (latency grows with prompt len).
+* ``decode_step`` - emit one token (fixed per-token latency + jitter).
 
 Latencies include configurable jitter so p50/p95 histograms are meaningful.
 """
