@@ -1,0 +1,112 @@
+# Mini-Dynamo — local stack.
+#
+# Topology: 1 router, 1 prefill node, 2 decode nodes, Redis for shared state.
+# Two decode nodes exist to demonstrate KV-aware sticky routing and fallback.
+#
+#   docker compose up --build
+#   curl -N -X POST localhost:8000/v1/generate \
+#        -H 'content-type: application/json' \
+#        -d '{"session_id":"s1","prompt":"hello there","max_tokens":32}'
+
+x-common-env: &common-env
+  REDIS_URL: redis://redis:6379/0
+  MODE: disaggregated
+  OTEL_ENABLED: "false"
+  LATENCY_JITTER: "0.15"
+  KV_MB_PER_TOKEN: "0.5"
+  MAX_BATCH_SIZE: "16"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  prefill:
+    build: .
+    command: >
+      uvicorn main:app --app-dir services/prefill
+      --host 0.0.0.0 --port 8000
+    environment:
+      <<: *common-env
+      SERVICE_NAME: prefill
+      ROLE: prefill
+      ADVERTISE_URL: http://prefill:8000
+      GPU_MEMORY_MB: "4096"
+      EVICTION_POLICY: lru
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  decode1:
+    build: .
+    command: >
+      uvicorn main:app --app-dir services/decode
+      --host 0.0.0.0 --port 8000
+    environment:
+      <<: *common-env
+      SERVICE_NAME: decode1
+      ROLE: decode
+      ADVERTISE_URL: http://decode1:8000
+      GPU_MEMORY_MB: "2048"
+      EVICTION_POLICY: lru
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  decode2:
+    build: .
+    command: >
+      uvicorn main:app --app-dir services/decode
+      --host 0.0.0.0 --port 8000
+    environment:
+      <<: *common-env
+      SERVICE_NAME: decode2
+      ROLE: decode
+      ADVERTISE_URL: http://decode2:8000
+      GPU_MEMORY_MB: "2048"
+      EVICTION_POLICY: lru
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  router:
+    build: .
+    command: >
+      uvicorn main:app --app-dir services/router
+      --host 0.0.0.0 --port 8000
+    environment:
+      <<: *common-env
+      SERVICE_NAME: router
+      ROLE: router
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      prefill:
+        condition: service_healthy
+      decode1:
+        condition: service_healthy
+      decode2:
+        condition: service_healthy

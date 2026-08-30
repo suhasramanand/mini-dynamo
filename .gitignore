@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env / secrets
+.env
+*.local
+
+# Benchmark output (keep the sample, ignore fresh runs)
+benchmark/results/*.json
+benchmark/results/run_*
+!benchmark/results/sample_results.md
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Docker
+*.log
