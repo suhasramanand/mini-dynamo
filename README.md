@@ -151,6 +151,23 @@ tokens/sec, requests/sec by outcome, queue depth, active batch size, KV cache
 utilization and memory, evictions, KV transfer time, and routing decisions
 (cache hit / miss / fallback).
 
+### Live dashboards
+
+Grafana "Mini-Dynamo Overview" under load — latency, throughput, continuous
+batching, and KV cache memory reaching capacity with evictions kicking in:
+
+![Grafana dashboard](docs/screenshots/grafana-overview.png)
+
+A single request traced across all three stages in Jaeger
+(router → prefill → decode), with the KV-transfer between stages shown as its
+own span:
+
+![Jaeger distributed trace](docs/screenshots/jaeger-trace.png)
+
+Prometheus scraping every service:
+
+![Prometheus targets](docs/screenshots/prometheus-targets.png)
+
 ## Benchmark
 
 The benchmark drives an identical workload against the disaggregated router and
