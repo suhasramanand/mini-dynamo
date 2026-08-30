@@ -1,0 +1,78 @@
+# Prefill workers run as a StatefulSet so each pod has a stable identity and
+# DNS name (prefill-0.prefill, ...). Each pod advertises that name in the Redis
+# registry, which is what makes KV-cache-aware sticky routing possible.
+apiVersion: v1
+kind: Service
+metadata:
+  name: prefill
+  namespace: mini-dynamo
+  labels:
+    app: prefill
+spec:
+  clusterIP: None          # headless: stable per-pod DNS
+  selector:
+    app: prefill
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prefill
+  namespace: mini-dynamo
+spec:
+  serviceName: prefill
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prefill
+  template:
+    metadata:
+      labels:
+        app: prefill
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: prefill
+          image: mini-dynamo:latest
+          imagePullPolicy: IfNotPresent
+          command: ["uvicorn"]
+          args: ["main:app", "--app-dir", "services/prefill", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: mini-dynamo-config
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ROLE
+              value: prefill
+            - name: SERVICE_NAME
+              value: "$(POD_NAME)"
+            - name: ADVERTISE_URL
+              value: "http://$(POD_NAME).prefill.mini-dynamo.svc.cluster.local:8000"
+            - name: GPU_MEMORY_MB
+              value: "4096"
+            - name: EVICTION_POLICY
+              value: lru
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10

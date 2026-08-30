@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mini-dynamo-config
+  namespace: mini-dynamo
+data:
+  REDIS_URL: "redis://redis:6379/0"
+  MODE: "disaggregated"
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "jaeger:4317"
+  KV_MB_PER_TOKEN: "0.5"
+  MAX_BATCH_SIZE: "16"
+  LATENCY_JITTER: "0.15"

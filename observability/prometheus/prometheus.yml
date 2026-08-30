@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: mini-dynamo
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - router:8000
+          - router-colo:8000
+          - prefill:8000
+          - decode1:8000
+          - decode2:8000
+        labels:
+          stack: mini-dynamo
+    relabel_configs:
+      # Expose the target host as a friendly "node" label for dashboards.
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: node
+        replacement: '$1'

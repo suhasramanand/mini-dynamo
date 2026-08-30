@@ -93,7 +93,7 @@ class Settings:
 
     # --- Observability ----------------------------------------------------
     otel_enabled: bool = True
-    otel_endpoint: str = "http://localhost:4317"
+    otel_endpoint: str = "localhost:4317"
     session_ttl: int = 3600               # sticky session->backend TTL (s)
 
     @property

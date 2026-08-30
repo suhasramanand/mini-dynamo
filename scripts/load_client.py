@@ -101,19 +101,39 @@ async def one_request(
     return r
 
 
-async def run(args) -> dict:
+async def run_load(
+    url: str,
+    requests: int,
+    concurrency: int,
+    max_tokens: int,
+    prompt_tokens: int,
+    sessions: int,
+    session_prefix: str = "load-",
+) -> dict:
+    """Drive ``requests`` generations at ``concurrency`` and return a report."""
     summary = Summary()
-    sem = asyncio.Semaphore(args.concurrency)
-    prompt = " ".join(["token"] * args.prompt_tokens)
+    sem = asyncio.Semaphore(concurrency)
+    prompt = " ".join(["token"] * prompt_tokens)
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         async def worker(i: int):
             async with sem:
-                sid = f"{args.session_prefix}{i % args.sessions}"
-                summary.add(await one_request(client, args.url, sid, prompt, args.max_tokens))
+                sid = f"{session_prefix}{i % max(1, sessions)}"
+                summary.add(await one_request(client, url, sid, prompt, max_tokens))
 
-        await asyncio.gather(*(worker(i) for i in range(args.requests)))
-    return summary.report()
+        await asyncio.gather(*(worker(i) for i in range(requests)))
+    report = summary.report()
+    report["wall_seconds"] = round(
+        max((r.total for r in summary.results if r.ok), default=0.0), 3
+    )
+    return report
+
+
+async def run(args) -> dict:
+    return await run_load(
+        args.url, args.requests, args.concurrency, args.max_tokens,
+        args.prompt_tokens, args.sessions, args.session_prefix,
+    )
 
 
 def main() -> None:

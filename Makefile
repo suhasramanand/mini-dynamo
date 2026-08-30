@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs ps smoke test clean fmt
+.PHONY: help build up down restart logs ps smoke bench test clean fmt
 
 COMPOSE ?= docker compose
 ROUTER  ?= http://localhost:8000
@@ -11,6 +11,7 @@ help:
 	@echo "  logs      Tail all logs"
 	@echo "  ps        Show running services"
 	@echo "  smoke     Run the smoke test against a running stack"
+	@echo "  bench     Run the colocated vs disaggregated benchmark"
 	@echo "  test      Run unit tests (needs local deps installed)"
 	@echo "  clean     Stop stack and remove volumes"
 
@@ -36,6 +37,10 @@ ps:
 
 smoke:
 	./scripts/smoke_test.sh $(ROUTER)
+
+bench:
+	$(COMPOSE) run --rm --no-deps -v "$(PWD):/work" -w /work prefill \
+		python benchmark/run_benchmark.py
 
 test:
 	pytest -q

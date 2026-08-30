@@ -11,7 +11,8 @@
 x-common-env: &common-env
   REDIS_URL: redis://redis:6379/0
   MODE: disaggregated
-  OTEL_ENABLED: "false"
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
   LATENCY_JITTER: "0.15"
   KV_MB_PER_TOKEN: "0.5"
   MAX_BATCH_SIZE: "16"
@@ -42,6 +43,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 3s
@@ -63,6 +66,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 3s
@@ -84,6 +89,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 3s
@@ -110,3 +117,58 @@ services:
         condition: service_healthy
       decode2:
         condition: service_healthy
+
+  # Colocated router (prefill+decode in one worker, no KV transfer). Used as
+  # the benchmark baseline; exposed on 8001.
+  router-colo:
+    build: .
+    command: >
+      uvicorn main:app --app-dir services/router
+      --host 0.0.0.0 --port 8000
+    environment:
+      <<: *common-env
+      SERVICE_NAME: router-colo
+      ROLE: router
+      MODE: colocated
+    ports:
+      - "8001:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      prefill:
+        condition: service_healthy
+
+  # --- Observability ---------------------------------------------------------
+  # Services export OpenTelemetry traces via OTLP directly to Jaeger, which
+  # runs an OTLP receiver on 4317.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_USERS_DEFAULT_THEME: light
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus

@@ -36,6 +36,15 @@ flowchart LR
     Router <-->|"discover + sticky map"| Redis
     Prefill <-->|"register KV metadata + heartbeat"| Redis
     Decode <-->|"heartbeat"| Redis
+
+    subgraph Observability
+        Prometheus[(Prometheus)]
+        Grafana[Grafana]
+        Jaeger[Jaeger]
+    end
+    Router & Prefill & Decode -.->|"/metrics"| Prometheus
+    Router & Prefill & Decode -.->|"OTLP traces"| Jaeger
+    Prometheus --> Grafana
 ```
 
 ### Components
@@ -120,6 +129,57 @@ and [`common/config.py`](common/config.py).
 | `POST /v1/decode` | decode | Transfer KV in and stream tokens |
 | `GET /health`, `/stats`, `/metrics` | all | Health, memory stats, Prometheus metrics |
 
+## Observability
+
+The Compose stack includes a full telemetry pipeline, available once
+`docker compose up` is running:
+
+| Tool | URL | What it shows |
+|---|---|---|
+| Grafana | http://localhost:3000 | "Mini-Dynamo Overview" dashboard (auto-provisioned) |
+| Prometheus | http://localhost:9090 | Raw metrics and scrape targets |
+| Jaeger | http://localhost:16686 | Distributed traces |
+
+Every service exposes Prometheus metrics at `/metrics` and exports
+OpenTelemetry traces (OTLP) to Jaeger. A single generation produces one
+connected trace spanning `router.generate → prefill.compute → decode.kv_transfer
+→ decode.generate`, so the KV transfer between stages is visible as its own
+span.
+
+The dashboard covers p50/p95 end-to-end latency and time-to-first-token,
+tokens/sec, requests/sec by outcome, queue depth, active batch size, KV cache
+utilization and memory, evictions, KV transfer time, and routing decisions
+(cache hit / miss / fallback).
+
+## Benchmark
+
+The benchmark drives an identical workload against the disaggregated router and
+a colocated router (prefill + decode in one worker, no KV transfer), and
+measures the KV-transfer overhead directly from the decode nodes' metrics.
+
+```bash
+make bench
+# or, explicitly:
+docker compose run --rm --no-deps -v "$PWD:/work" -w /work prefill \
+  python benchmark/run_benchmark.py --requests 60 --concurrency 8 --max-tokens 32
+```
+
+It writes a JSON result to `benchmark/results/` and prints a Markdown report.
+A representative run is committed at
+[`benchmark/results/sample_results.md`](benchmark/results/sample_results.md).
+
+## Kubernetes
+
+Manifests for a local cluster (kind / minikube / Docker Desktop) are under
+[`k8s/`](k8s/). Prefill and decode run as StatefulSets with headless Services
+for stable per-pod identity, so sticky routing and independent scaling work the
+same as in Compose. See [`k8s/README.md`](k8s/README.md).
+
+```bash
+docker build -t mini-dynamo:latest .
+kubectl apply -k k8s/
+```
+
 ## Testing
 
 ```bash
@@ -129,9 +189,12 @@ pytest -q
 ## Repository layout
 
 ```
-common/      shared library (config, models, memory_sim, mock_model,
-             kv_transfer, batching, redis_client, telemetry, metrics)
-services/    router/ · prefill/ · decode/   (FastAPI apps)
-scripts/     smoke_test.sh · load_client.py
-tests/       unit tests
+common/         shared library (config, models, memory_sim, mock_model,
+                kv_transfer, batching, redis_client, telemetry, metrics)
+services/       router/ · prefill/ · decode/   (FastAPI apps)
+scripts/        smoke_test.sh · load_client.py
+benchmark/      run_benchmark.py · report.py · results/
+observability/  prometheus/ · grafana/ (datasources, dashboards)
+k8s/            Kubernetes manifests (kustomize) + observability/
+tests/          unit tests
 ```
